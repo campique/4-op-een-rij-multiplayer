@@ -1,0 +1,13 @@
+{
+  "name": "4-op-een-rij-multiplayer",
+  "version": "1.0.0",
+  "description": "Multiplayer 4 op een rij spel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^4.1.2"
+  }
+}

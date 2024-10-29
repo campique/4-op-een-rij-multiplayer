@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4 op een Rij Multiplayer</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+        }
+        .board {
+            display: inline-grid;
+            grid-template-columns: repeat(7, 50px);
+            grid-gap: 5px;
+            background-color: #0066cc;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .cell.red { background-color: red; }
+        .cell.yellow { background-color: yellow; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="startMenu">
+            <h1>4 op een Rij Multiplayer</h1>
+            <button id="createGame">Nieuw Spel Maken</button>
+            <br><br>
+            <input id="gameIdInput" type="text" placeholder="Spel ID">
+            <button id="joinGame">Spel Joinen</button>
+        </div>
+        <div id="gameContainer" class="hidden">
+            <h2>4 op een Rij</h2>
+            <div id="gameBoard" class="board"></div>
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const startMenu = document.getElementById('startMenu');
+        const gameContainer = document.getElementById('gameContainer');
+        const board = document.getElementById('gameBoard');
+        const statusDisplay = document.getElementById('status');
+        const createGameButton = document.getElementById('createGame');
+        const joinGameButton = document.getElementById('joinGame');
+        const gameIdInput = document.getElementById('gameIdInput');
+
+        let gameId;
+        let playerNumber;
+
+        createGameButton.addEventListener('click', () => {
+            socket.emit('createGame');
+        });
+
+        joinGameButton.addEventListener('click', () => {
+            const id = gameIdInput.value.trim();
+            if (id) {
+                socket.emit('joinGame', id);
+            }
+        });
+
+        socket.on('gameCreated', (id) => {
+            gameId = id;
+            statusDisplay.textContent = `Spel gemaakt. Deel deze ID met je vriend: ${gameId}`;
+            startMenu.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+        });
+
+        socket.on('gameJoined', (players) => {
+            playerNumber = players.indexOf(socket.id);
+            statusDisplay.textContent = `Je bent speler ${playerNumber + 1}. Wachten op start...`;
+            startMenu.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+        });
+
+        socket.on('gameStart', (startingPlayer) => {
+            createBoard();
+            statusDisplay.textContent = `Spel gestart. ${startingPlayer === playerNumber ? 'Jij' : 'Tegenstander'} begint.`;
+        });
+
+        socket.on('moveMade', ({ row, col, player }) => {
+            const cell = board.children[row * 7 + col];
+            cell.classList.add(player === 0 ? 'red' : 'yellow');
+            statusDisplay.textContent = `${player === playerNumber ? 'Tegenstander' : 'Jij'} is aan de beurt.`;
+        });
+
+        socket.on('gameOver', ({ winner, draw }) => {
+            if (draw) {
+                statusDisplay.textContent = "Gelijkspel!";
+            } else {
+                statusDisplay.textContent = winner === playerNumber ? "Je hebt gewonnen!" : "Je hebt verloren.";
+            }
+        });
+
+        function createBoard() {
+            board.innerHTML = '';
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', () => handleCellClick(col));
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellClick(col) {
+            socket.emit('makeMove', { gameId, col });
+        }
+    </script>
+</body>
+</html>
